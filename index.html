@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>የካ ፅዳት | Official Pink V9.6 Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --pink: #ff007f; --bg: #0d0006; }
+        body { background: var(--bg); color: #fff; font-family: 'Segoe UI', Roboto, sans-serif; overflow-x: hidden; }
+        .pink-neon { color: var(--pink); text-shadow: 0 0 10px var(--pink), 0 0 20px var(--pink); }
+        .glass-pink { background: rgba(45, 0, 22, 0.85); border: 2px solid var(--pink); border-radius: 20px; box-shadow: 0 0 20px rgba(255, 0, 127, 0.2); }
+        .btn-pink { background: var(--pink); color: #000; font-weight: 900; border-radius: 12px; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-pink:active { transform: scale(0.95); }
+        .input-pink { background: rgba(255, 0, 127, 0.05); border: 1px solid var(--pink); color: #fff; padding: 12px; border-radius: 10px; width: 100%; outline: none; }
+        .bar-v { width: 38px; border-radius: 8px 8px 2px 2px; transition: height 0.5s ease-in-out; min-height: 5px; }
+        #reader { width: 100% !important; border: none !important; border-radius: 15px; overflow: hidden; }
+        select option { background: #2d0016; color: white; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const App = () => {
+            const [view, setView] = useState(() => {
+                const params = new URLSearchParams(window.location.search);
+                return params.get('page') === 'report' ? 'citizen' : 'landing';
+            });
+            const [complaints, setComplaints] = useState(() => JSON.parse(localStorage.getItem('yeka_v9_db')) || []);
+            const [keys, setKeys] = useState(() => JSON.parse(localStorage.getItem('yeka_v9_keys')) || { citizen: '0000', admin: '1111', creator: '2222' });
+            const [ui, setUi] = useState({ scanning: false, hasPhoto: false, location: null });
+            const [searchPhone, setSearchPhone] = useState('');
+            const [foundReports, setFoundReports] = useState([]);
+            const audioRef = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'));
+
+            const weredas = ["ወረዳ 01", "ወረዳ 02", "ወረዳ 03", "ወረዳ 04", "ወረዳ 05", "ወረዳ 06", "ወረዳ 07", "ወረዳ 08", "ወረዳ 09", "ወረዳ 10", "ወረዳ 11", "ወረዳ 12"];
+
+            useEffect(() => { localStorage.setItem('yeka_v9_db', JSON.stringify(complaints)); }, [complaints]);
+            useEffect(() => { localStorage.setItem('yeka_v9_keys', JSON.stringify(keys)); }, [keys]);
+
+            const handleLogin = (code, role) => {
+                if (code === keys[role]) setView(role);
+                else alert("የተሳሳተ ኮድ!");
+            };
+
+            const getLocation = () => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition((pos) => {
+                        setUi(prev => ({...prev, location: { lat: pos.coords.latitude, lng: pos.coords.longitude }}));
+                        alert("GPS ቦታው ተገኝቷል!");
+                    }, () => alert("GPS መክፈት አልተቻለም።"));
+                }
+            };
+
+            const startScan = () => {
+                setUi(prev => ({...prev, scanning: true}));
+                setTimeout(() => {
+                    const scanner = new Html5Qrcode("reader");
+                    scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
+                    () => { scanner.stop(); setUi(prev => ({...prev, scanning: false})); setView('citizen'); }, 
+                    () => {}).catch(() => alert("ካሜራ አልተገኘም"));
+                }, 300);
+            };
+
+            const submitForm = (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData.entries());
+                const report = { ...data, id: Date.now(), status: 'New', rating: null, location: ui.location, time: new Date().toLocaleString() };
+                setComplaints([report, ...complaints]);
+                audioRef.current.play();
+                alert("ቅሬታዎ በተሳካ ሁኔታ ተመዝግቧል!");
+                setView('landing');
+            };
+
+            const rateComplaint = (id, rating) => {
+                setComplaints(complaints.map(c => c.id === id ? {...c, rating: rating} : c));
+                alert("ስለ እርካታዎ እናመሰግናለን!");
+            };
+
+            return (
+                <div className="min-h-screen max-w-md mx-auto flex flex-col relative border-x border-pink-900/30">
+                    <header className="p-4 glass-pink m-2 flex justify-between items-center sticky top-0 z-50">
+                        <div className="flex items-center gap-2">
+                            <i className="fas fa-recycle pink-neon text-2xl animate-pulse"></i>
+                            <h1 className="text-sm font-black pink-neon uppercase">የካ ፅዳት</h1>
+                        </div>
+                        <button onClick={() => setView('tracker')} className="text-[10px] font-black bg-white/10 px-3 py-2 rounded-lg border border-pink-500 uppercase">ክትትል</button>
+                    </header>
+
+                    <main className="flex-1 p-4 overflow-y-auto pb-20">
+                        {view === 'landing' && (
+                            <div className="space-y-6 pt-4">
+                                <div className="text-center">
+                                    <h2 className="text-2xl font-black italic">የየካ ፅዳት አስተዳደር</h2>
+                                </div>
+                                <div className="glass-pink p-5">
+                                    <button onClick={() => setView('citizen')} className="btn-pink w-full py-4 uppercase">አዲስ ቅሬታ</button>
+                                </div>
+                                {['admin', 'creator'].map(role => (
+                                    <div key={role} className="glass-pink p-4 flex gap-2">
+                                        <input type="password" placeholder="Passcode" className="input-pink" onKeyDown={(e) => e.key === 'Enter' && handleLogin(e.target.value, role)} />
+                                        <button onClick={(e) => handleLogin(e.target.previousSibling.value, role)} className="btn-pink px-4">GO</button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {view === 'tracker' && (
+                            <div className="space-y-4">
+                                <input type="tel" placeholder="ስልክ ቁጥር ያስገቡ" className="input-pink" onChange={(e) => setSearchPhone(e.target.value)} />
+                                <button onClick={() => setFoundReports(complaints.filter(c => c.phone === searchPhone))} className="btn-pink w-full py-2">ፈልግ</button>
+                                {foundReports.map(c => (
+                                    <div key={c.id} className="glass-pink p-4 space-y-2">
+                                        <p className="text-xs">{c.name} - {c.status}</p>
+                                        {c.status === 'Resolved' && !c.rating && (
+                                            <div className="space-y-2 mt-2">
+                                                <p className="text-[10px]">እርካታዎን ይግለጹ፡</p>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {['በጣም ከፍተኛ', 'ከፍተኛ', 'መካከለኛ', 'ዝቅተኛ'].map(r => (
+                                                        <button key={r} onClick={() => rateComplaint(c.id, r)} className="bg-pink-900 text-[10px] py-1 rounded">{r}</button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {c.rating && <p className="text-green-400 text-xs">ደረጃዎ: {c.rating}</p>}
+                                    </div>
+                                ))}
+                                <button onClick={() => setView('landing')} className="w-full text-xs opacity-50">ተመለስ</button>
+                            </div>
+                        )}
+
+                        {view === 'citizen' && (
+                            <form onSubmit={submitForm} className="glass-pink p-6 space-y-4">
+                                <input name="name" placeholder="ሙሉ ስም" required className="input-pink" />
+                                <input name="phone" placeholder="ስልክ ቁጥር" required className="input-pink" />
+                                <select name="wereda" className="input-pink" required>
+                                    {weredas.map(w => <option key={w} value={w}>{w}</option>)}
+                                </select>
+                                <button type="submit" className="btn-pink w-full py-4">ሪፖርት ላክ</button>
+                            </form>
+                        )}
+
+                        {(view === 'admin' || view === 'creator') && (
+                            <div className="space-y-3">
+                                {complaints.map(c => (
+                                    <div key={c.id} className="glass-pink p-4">
+                                        <p className="text-xs">{c.name} | {c.status} | እርካታ: {c.rating || 'አልተሰጠም'}</p>
+                                        <div className="flex gap-2 mt-2">
+                                            <button onClick={() => setComplaints(complaints.map(i => i.id === c.id ? {...i, status: 'In Progress'} : i))} className="bg-white/10 px-2 rounded text-[8px]">ሂደት</button>
+                                            <button onClick={() => setComplaints(complaints.map(i => i.id === c.id ? {...i, status: 'Resolved'} : i))} className="bg-green-600 px-2 rounded text-[8px]">ተፈታ</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
